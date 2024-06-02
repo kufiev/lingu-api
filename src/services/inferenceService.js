@@ -9,7 +9,7 @@ async function predictClassification(model, image) {
             .expandDims()
             .toFloat()
  
-        const classes = ['Cancer', 'Non-cancer'];
+        const classes = ['A', 'B'];
  
         const prediction = model.predict(tensor);
         const score = await prediction.data();
@@ -18,13 +18,13 @@ async function predictClassification(model, image) {
         let label
         let suggestion;
  
-        if (confidenceScore > 50) {
-            label = "Cancer";
-            suggestion = "Segera periksa ke dokter!";
-        } else {
-            label = "Non-cancer";
-            suggestion = "Anda sehat!";
-        }
+        // if (confidenceScore > 50) {
+        //     label = "Cancer";
+        //     suggestion = "Segera periksa ke dokter!";
+        // } else {
+        //     label = "Non-cancer";
+        //     suggestion = "Anda sehat!";
+        // }
  
         return { label, suggestion, confidenceScore };
     } catch (error) {
