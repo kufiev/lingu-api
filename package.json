@@ -1,5 +1,5 @@
 {
-  "name": "serta-mulia",
+  "name": "lingu",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -15,7 +15,10 @@
     "@google-cloud/firestore": "^7.7.0",
     "@hapi/hapi": "^21.3.9",
     "@tensorflow/tfjs-node": "^4.14.0",
-    "dotenv": "^16.4.5"
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "firebase-admin": "^12.1.1",
+    "joi": "^17.13.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
