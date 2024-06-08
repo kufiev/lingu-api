@@ -16,13 +16,14 @@ async function hashPassword(password) {
     }
 }
 
-async function register(email, password) {
+async function registerUser(email, password, fullName) {
     try {
         const hashedPassword = await hashPassword(password);
         const uid = uuidv4();
         const userData = {
             uid: uid,
             email: email,
+            fullName: fullName,
             password: hashedPassword,
             createdAt: new Date().toISOString()
         };
@@ -30,13 +31,13 @@ async function register(email, password) {
         const userCollection = db.collection('users');
         await userCollection.doc(uid).set(userData);
 
-        return { uid: uid, email: email };
+        return { uid: uid, email: email, fullName: fullName };
     } catch (error) {
         throw new InputError(error.message);
     }
 }
 
-async function login(email, password) {
+async function loginUser(email, password) {
     try {
         const userCollection = db.collection('users');
         const snapshot = await userCollection.where('email', '==', email).get();
@@ -52,10 +53,10 @@ async function login(email, password) {
             throw new Error('Invalid email or password');
         }
 
-        return { uid: userData.uid, email: userData.email };
+        return { uid: userData.uid, email: userData.email, fullName: userData.fullName };
     } catch (error) {
         throw new InputError('Invalid email or password');
     }
 }
 
-module.exports = { register, login };
+module.exports = { registerUser, loginUser };
