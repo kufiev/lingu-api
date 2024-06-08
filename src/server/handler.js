@@ -84,6 +84,41 @@ async function getPredictHistoriesHandler(request, h) {
 }
 */
 async function registerHandler(request, h) {
+  const { fullName, email, password, confirmPassword } = request.payload;
+
+  const schema = Joi.object({
+    fullName: Joi.string().min(1).required(),
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required(),
+    confirmPassword: Joi.string().valid(Joi.ref('password')).required().messages({
+      'any.only': 'The password and confirmation password do not match.'
+    })
+  });
+
+  const { error } = schema.validate({ fullName, email, password, confirmPassword });
+  if (error) {
+    return h.response({
+      status: 'fail',
+      message: error.details[0].message
+    }).code(400);
+  }
+
+  try {
+    const user = await registerUser(email, password, fullName);
+    return h.response({
+      status: 'success',
+      message: 'User registered successfully',
+      data: { uid: user.uid, email: user.email, fullName: user.fullName }
+    }).code(201);
+  } catch (err) {
+    return h.response({
+      status: 'fail',
+      message: err.message
+    }).code(400);
+  }
+}
+
+async function loginHandler(request, h) {
   const { email, password } = request.payload;
 
   const schema = Joi.object({
@@ -100,12 +135,12 @@ async function registerHandler(request, h) {
   }
 
   try {
-    const user = await register(email, password);
+    const user = await loginUser(email, password);
     return h.response({
       status: 'success',
-      message: 'User registered successfully',
-      data: { uid: user.uid, email: user.email }
-    }).code(201);
+      message: 'User logged in successfully',
+      data: user
+    }).code(200);
   } catch (err) {
     return h.response({
       status: 'fail',
@@ -114,38 +149,6 @@ async function registerHandler(request, h) {
   }
 }
 
-async function loginHandler(request, h) {
-  const { email, password } = request.payload;
-
-  const schema = Joi.object({
-      email: Joi.string().email().required(),
-      password: Joi.string().min(6).required()
-  });
-
-  const { error } = schema.validate({ email, password });
-  if (error) {
-      return h.response({
-          status: 'fail',
-          message: error.details[0].message
-      }).code(400);
-  }
-
-  try {
-      const user = await login(email, password);
-      return h.response({
-          status: 'success',
-          message: 'User logged in successfully',
-          data: user
-      }).code(200);
-  } catch (err) {
-      return h.response({
-          status: 'fail',
-          message: err.message
-      }).code(400);
-  }
-}
-
- 
 module.exports = { 
   postPredictHandler, 
   getPredictHistoriesHandler, 
