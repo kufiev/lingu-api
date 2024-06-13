@@ -15,6 +15,18 @@ const InputError = require('../exceptions/InputError');
     },
   });
 
+  // Register the cookie plugin
+  await server.register(require('@hapi/cookie'));
+
+  // Define cookie state
+  server.state('token', {
+    ttl: 60 * 60 * 1000, // 1 hour lifetime
+    isSecure: process.env.NODE_ENV === 'production',
+    isHttpOnly: true,
+    path: '/',
+    encoding: 'base64json'
+  });
+
   const model = await loadModel();
   server.app.model = model;
 

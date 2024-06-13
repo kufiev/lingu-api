@@ -3,35 +3,54 @@ const crypto = require('crypto');
 const ClientError = require('../exceptions/ClientError');
 const { registerUser, loginUser } = require('../services/authService');
 const predictClassification = require('../services/inferenceService');
-const storeData = require('../services/storeData');
+const { storeData } = require('../services/storeData');
 const Joi = require('joi');
+const jwt = require('jsonwebtoken');
 
 async function postPredictHandler(request, h) {
   const { image } = request.payload;
   const { model } = request.server.app;
+  const authHeader = request.headers.authorization || request.state.token;
 
-  if (image.length > 1048576) {
+  if (!authHeader) {
     const response = h.response({
       status: 'fail',
-      message: 'Payload content length greater than maximum allowed: 1000000'
+      message: 'Authorization header is missing'
     });
-    response.code(413);
+    response.code(401);
+    return response;
+  }
+
+  const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+
+  let user;
+  try {
+    user = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    const response = h.response({
+      status: 'fail',
+      message: 'Invalid token'
+    });
+    response.code(401);
     return response;
   }
 
   try {
-    const { label, explanation } = await predictClassification(model, image);
+    const { label, suggestion, confidenceScore } = await predictClassification(model, image);
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
     const data = {
       id: id,
       result: label,
-      explanation: explanation,
-      createdAt: createdAt
+      suggestion: suggestion,
+      confidenceScore: confidenceScore,
+      createdAt: createdAt,
+      userId: user.uid
     };
 
     await storeData(id, data);
+
     const response = h.response({
       status: 'success',
       message: 'Model is predicted successfully',
@@ -39,7 +58,8 @@ async function postPredictHandler(request, h) {
     });
     response.code(201);
     return response;
-  } catch {
+  } catch (error) {
+    console.error('Prediction error:', error);
     const response = h.response({
       status: 'fail',
       message: 'Terjadi kesalahan dalam melakukan prediksi'
@@ -50,10 +70,35 @@ async function postPredictHandler(request, h) {
 }
 
 async function getPredictHistoriesHandler(request, h) {
+  const authHeader = request.headers.authorization || request.state.token;
+
+  if (!authHeader) {
+    const response = h.response({
+      status: 'fail',
+      message: 'Authorization header is missing'
+    });
+    response.code(401);
+    return response;
+  }
+
+  const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+
+  let user;
+  try {
+    user = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    const response = h.response({
+      status: 'fail',
+      message: 'Invalid token'
+    });
+    response.code(401);
+    return response;
+  }
+
   try {
     const db = new Firestore();
     const predictCollection = db.collection('predictions');
-    const snapshot = await predictCollection.get();
+    const snapshot = await predictCollection.where('userId', '==', user.uid).get();
 
     const histories = [];
     snapshot.forEach(doc => {
@@ -63,7 +108,8 @@ async function getPredictHistoriesHandler(request, h) {
         history: {
           result: data.result,
           createdAt: data.createdAt,
-          explanation: data.explanation,
+          suggestion: data.suggestion,
+          confidenceScore: data.confidenceScore,
           id: doc.id
         }
       });
@@ -75,7 +121,8 @@ async function getPredictHistoriesHandler(request, h) {
     });
     response.code(200);
     return response;
-  } catch {
+  } catch (error) {
+    console.error('Error fetching prediction histories:', error);
     throw new ClientError('Gagal mengambil riwayat prediksi', 500);
   }
 }
@@ -105,7 +152,10 @@ async function registerHandler(request, h) {
     return h.response({
       status: 'success',
       message: 'User registered successfully',
-      data: { uid: user.uid, email: user.email, fullName: user.fullName }
+      data: { 
+        uid: user.uid, 
+        email: user.email, 
+        fullName: user.fullName }
     }).code(201);
   } catch (err) {
     return h.response({
@@ -133,11 +183,14 @@ async function loginHandler(request, h) {
 
   try {
     const user = await loginUser(email, password);
+
+    // Set the token in the cookie
     return h.response({
       status: 'success',
       message: 'User logged in successfully',
       data: user
-    }).code(200);
+    }).state('token', user.token, { path: '/', isHttpOnly: true, isSecure: process.env.NODE_ENV === 'production' })
+      .code(200);
   } catch (err) {
     return h.response({
       status: 'fail',
@@ -145,6 +198,7 @@ async function loginHandler(request, h) {
     }).code(400);
   }
 }
+
 
 module.exports = { 
   postPredictHandler, 

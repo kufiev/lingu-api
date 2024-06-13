@@ -2,6 +2,7 @@ const { Firestore } = require('@google-cloud/firestore');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 const InputError = require('../exceptions/InputError');
+const jwt = require('jsonwebtoken');
 
 const db = new Firestore();
 
@@ -57,8 +58,17 @@ async function loginUser(email, password) {
     if (!passwordIsValid) {
       throw new Error('Invalid email or password');
     }
+    const token = jwt.sign(
+      { uid: userData.uid, email: userData.email },
+      process.env.JWT_SECRET,  // Use your secret key from environment variables
+      { expiresIn: '1h' }  // Token expires in 1 hour
+    );
 
-    return { uid: userData.uid, email: userData.email, fullName: userData.fullName };
+    return { 
+      uid: userData.uid, 
+      email: userData.email, 
+      fullName: userData.fullName, 
+      token: token };
   } catch {
       throw new InputError('Invalid email or password');
   }
