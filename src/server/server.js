@@ -1,7 +1,6 @@
 require('dotenv').config();
 const Hapi = require('@hapi/hapi');
 const routes = require('./routes');
-const loadModel = require('../services/loadModel');
 const InputError = require('../exceptions/InputError');
 
 (async () => {
@@ -24,11 +23,8 @@ const InputError = require('../exceptions/InputError');
     isSecure: process.env.NODE_ENV === 'production',
     isHttpOnly: true,
     path: '/',
-    encoding: 'base64json'
+    encoding: 'base64json',
   });
-
-  const model = await loadModel();
-  server.app.model = model;
 
   server.route(routes);
 
@@ -38,7 +34,7 @@ const InputError = require('../exceptions/InputError');
     if (response instanceof InputError) {
       const newResponse = h.response({
         status: 'fail',
-        message: 'Terjadi kesalahan dalam melakukan prediksi'
+        message: response.message,
       });
       newResponse.code(response.statusCode);
       return newResponse;
@@ -47,7 +43,7 @@ const InputError = require('../exceptions/InputError');
     if (response.isBoom) {
       const newResponse = h.response({
         status: 'fail',
-        message: response.message
+        message: response.message,
       });
       newResponse.code(response.output.statusCode);
       return newResponse;

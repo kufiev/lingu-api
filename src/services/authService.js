@@ -12,11 +12,11 @@ async function hashPassword(password) {
     const hash = await bcrypt.hash(password, salt);
     return hash;
   } catch (error) {
-      console.error('Hashing error:', error);
-      throw error;
+    console.error('Hashing error:', error);
+    throw error;
   }
 }
-  
+
 async function registerUser(email, password, fullName) {
   try {
     const userCollection = db.collection('users');
@@ -24,7 +24,7 @@ async function registerUser(email, password, fullName) {
     if (!snapshot.empty) {
       throw new InputError('Email is already registered');
     }
-  
+
     const hashedPassword = await hashPassword(password);
     const uid = uuidv4();
     const userData = {
@@ -32,14 +32,14 @@ async function registerUser(email, password, fullName) {
       email: email,
       fullName: fullName,
       password: hashedPassword,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-  
+
     await userCollection.doc(uid).set(userData);
-  
+
     return { uid: uid, email: email, fullName: fullName };
   } catch (error) {
-      throw new InputError(error.message);
+    throw new InputError(error.message);
   }
 }
 
@@ -60,17 +60,18 @@ async function loginUser(email, password) {
     }
     const token = jwt.sign(
       { uid: userData.uid, email: userData.email },
-      process.env.JWT_SECRET,  // Use your secret key from environment variables
-      { expiresIn: '1h' }  // Token expires in 1 hour
+      process.env.JWT_SECRET, // Use your secret key from environment variables
+      { expiresIn: '1h' } // Token expires in 1 hour
     );
 
-    return { 
-      uid: userData.uid, 
-      email: userData.email, 
-      fullName: userData.fullName, 
-      token: token };
+    return {
+      uid: userData.uid,
+      email: userData.email,
+      fullName: userData.fullName,
+      token: token,
+    };
   } catch {
-      throw new InputError('Invalid email or password');
+    throw new InputError('Invalid email or password');
   }
 }
 

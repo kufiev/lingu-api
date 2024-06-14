@@ -1,5 +1,5 @@
 const { Firestore } = require('@google-cloud/firestore');
- 
+
 async function storeData(id, data) {
   const db = new Firestore();
   const predictCollection = db.collection('predictions');
@@ -12,5 +12,5 @@ async function storeUserData(uid, data) {
   const userCollection = db.collection('users');
   return userCollection.doc(uid).set(data);
 }
- 
+
 module.exports = { storeData, storeUserData };
