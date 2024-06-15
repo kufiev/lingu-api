@@ -60,8 +60,8 @@ async function loginUser(email, password) {
     }
     const token = jwt.sign(
       { uid: userData.uid, email: userData.email },
-      process.env.JWT_SECRET, // Use your secret key from environment variables
-      { expiresIn: '1h' } // Token expires in 1 hour
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
     );
 
     return {
