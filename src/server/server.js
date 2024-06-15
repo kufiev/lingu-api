@@ -14,12 +14,10 @@ const InputError = require('../exceptions/InputError');
     },
   });
 
-  // Register the cookie plugin
   await server.register(require('@hapi/cookie'));
 
-  // Define cookie state
   server.state('token', {
-    ttl: 60 * 60 * 1000, // 1 hour lifetime
+    ttl: 60 * 60 * 1000,
     isSecure: process.env.NODE_ENV === 'production',
     isHttpOnly: true,
     path: '/',

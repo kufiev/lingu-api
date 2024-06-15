@@ -203,7 +203,6 @@ async function loginHandler(request, h) {
   try {
     const user = await loginUser(email, password);
 
-    // Set the token in the cookie
     return h
       .response({
         status: 'success',
