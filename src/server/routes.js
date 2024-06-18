@@ -22,8 +22,7 @@ const routes = [
     handler: postPredictHandler,
     options: {
       payload: {
-        allow: 'multipart/form-data',
-        multipart: true,
+        allow: ['application/json'],
       },
     },
   },

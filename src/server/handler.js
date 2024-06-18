@@ -4,6 +4,7 @@ const ClientError = require('../exceptions/ClientError');
 const { registerUser, loginUser } = require('../services/authService');
 const Joi = require('joi');
 const jwt = require('jsonwebtoken');
+const { storeData } = require('../services/storeData');
 
 async function postPredictHandler(request, h) {
   const { label, suggestion, confidenceScore } = request.payload;
