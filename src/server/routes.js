@@ -18,11 +18,6 @@ const routes = [
     handler: loginHandler,
   },
   {
-    path: '/account',
-    method: 'GET',
-    handler: getAccountHandler,
-  },
-  {
     path: '/predict',
     method: 'POST',
     handler: postPredictHandler,

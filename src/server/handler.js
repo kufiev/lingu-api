@@ -102,67 +102,6 @@ async function loginHandler(request, h) {
   }
 }
 
-async function getAccountHandler(request, h) {
-  const authHeader = request.headers.authorization || request.state.token;
-
-  if (!authHeader) {
-    const response = h.response({
-      status: 'fail',
-      message: 'Authorization header is missing',
-    });
-    response.code(401);
-    return response;
-  }
-
-  const token = authHeader.startsWith('Bearer ')
-    ? authHeader.split(' ')[1]
-    : authHeader;
-
-  let user;
-  try {
-    user = jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    const response = h.response({
-      status: 'fail',
-      message: 'Invalid token',
-    });
-    response.code(401);
-    return response;
-  }
-
-  try {
-    const db = new Firestore();
-    const userDoc = await db.collection('users').doc(user.uid).get();
-
-    if (!userDoc.exists) {
-      const response = h.response({
-        status: 'fail',
-        message: 'User not found',
-      });
-      response.code(404);
-      return response;
-    }
-
-    const userData = userDoc.data();
-    const response = h.response({
-      status: 'success',
-      data: {
-        fullName: userData.fullName,
-      },
-    });
-    response.code(200);
-    return response;
-  } catch (error) {
-    console.error('Error fetching user data:', error);
-    const response = h.response({
-      status: 'fail',
-      message: 'Error occurred while fetching user data',
-    });
-    response.code(500);
-    return response;
-  }
-}
-
 async function postPredictHandler(request, h) {
   const { category, character, confidenceScore } = request.payload;
   const authHeader = request.headers.authorization || request.state.token;
