@@ -6,130 +6,6 @@ const Joi = require('joi');
 const jwt = require('jsonwebtoken');
 const { storeData } = require('../services/storeData');
 
-async function postPredictHandler(request, h) {
-  const { label, suggestion, confidenceScore } = request.payload;
-  const authHeader = request.headers.authorization || request.state.token;
-
-  if (!authHeader) {
-    const response = h.response({
-      status: 'fail',
-      message: 'Authorization header is missing',
-    });
-    response.code(401);
-    return response;
-  }
-
-  const token = authHeader.startsWith('Bearer ')
-    ? authHeader.split(' ')[1]
-    : authHeader;
-
-  let user;
-  try {
-    user = jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    const response = h.response({
-      status: 'fail',
-      message: 'Invalid token',
-    });
-    response.code(401);
-    return response;
-  }
-
-  try {
-    const id = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
-
-    const data = {
-      id: id,
-      result: label,
-      suggestion: suggestion,
-      confidenceScore: confidenceScore,
-      createdAt: createdAt,
-      userId: user.uid,
-    };
-
-    await storeData(id, data);
-
-    const response = h.response({
-      status: 'success',
-      message: 'Data is stored successfully',
-      data,
-    });
-    response.code(201);
-    return response;
-  } catch (error) {
-    console.error('Error storing data:', error);
-    const response = h.response({
-      status: 'fail',
-      message: 'Error occurred while storing data',
-    });
-    response.code(500);
-    return response;
-  }
-}
-
-async function getPredictHistoriesHandler(request, h) {
-  const authHeader = request.headers.authorization || request.state.token;
-
-  if (!authHeader) {
-    const response = h.response({
-      status: 'fail',
-      message: 'Authorization header is missing',
-    });
-    response.code(401);
-    return response;
-  }
-
-  const token = authHeader.startsWith('Bearer ')
-    ? authHeader.split(' ')[1]
-    : authHeader;
-
-  let user;
-  try {
-    user = jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    const response = h.response({
-      status: 'fail',
-      message: 'Invalid token',
-    });
-    response.code(401);
-    return response;
-  }
-
-  try {
-    const db = new Firestore();
-    const predictCollection = db.collection('predictions');
-    const snapshot = await predictCollection
-      .where('userId', '==', user.uid)
-      .get();
-
-    const histories = [];
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      histories.push({
-        id: doc.id,
-        history: {
-          result: data.result,
-          createdAt: data.createdAt,
-          suggestion: data.suggestion,
-          confidenceScore: data.confidenceScore,
-          id: doc.id,
-        },
-      });
-    });
-
-    const response = h.response({
-      status: 'success',
-      data: histories,
-    });
-    response.code(200);
-    return response;
-  } catch (error) {
-    console.error('Error fetching prediction histories:', error);
-    throw new ClientError('Gagal mengambil riwayat prediksi', 500);
-  }
-}
-
 async function registerHandler(request, h) {
   const { fullName, email, password, confirmPassword } = request.payload;
 
@@ -226,9 +102,278 @@ async function loginHandler(request, h) {
   }
 }
 
+async function getAccountHandler(request, h) {
+  const authHeader = request.headers.authorization || request.state.token;
+
+  if (!authHeader) {
+    const response = h.response({
+      status: 'fail',
+      message: 'Authorization header is missing',
+    });
+    response.code(401);
+    return response;
+  }
+
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.split(' ')[1]
+    : authHeader;
+
+  let user;
+  try {
+    user = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    const response = h.response({
+      status: 'fail',
+      message: 'Invalid token',
+    });
+    response.code(401);
+    return response;
+  }
+
+  try {
+    const db = new Firestore();
+    const userDoc = await db.collection('users').doc(user.uid).get();
+
+    if (!userDoc.exists) {
+      const response = h.response({
+        status: 'fail',
+        message: 'User not found',
+      });
+      response.code(404);
+      return response;
+    }
+
+    const userData = userDoc.data();
+    const response = h.response({
+      status: 'success',
+      data: {
+        fullName: userData.fullName,
+      },
+    });
+    response.code(200);
+    return response;
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+    const response = h.response({
+      status: 'fail',
+      message: 'Error occurred while fetching user data',
+    });
+    response.code(500);
+    return response;
+  }
+}
+
+async function postPredictHandler(request, h) {
+  const { category, character, confidenceScore } = request.payload;
+  const authHeader = request.headers.authorization || request.state.token;
+
+  if (!authHeader) {
+    const response = h.response({
+      status: 'fail',
+      message: 'Authorization header is missing',
+    });
+    response.code(401);
+    return response;
+  }
+
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.split(' ')[1]
+    : authHeader;
+
+  let user;
+  try {
+    user = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    const response = h.response({
+      status: 'fail',
+      message: 'Invalid token',
+    });
+    response.code(401);
+    return response;
+  }
+
+  try {
+    const db = new Firestore();
+    const predictCollection = db.collection('predictions');
+
+    const existingPredictions = await predictCollection
+      .where('userId', '==', user.uid)
+      .where('category', '==', category)
+      .where('character', '==', character)
+      .get();
+
+    if (!existingPredictions.empty) {
+      const existingPredictionDoc = existingPredictions.docs[0];
+      const existingPrediction = existingPredictionDoc.data();
+
+      if (confidenceScore >= existingPrediction.confidenceScore) {
+        await existingPredictionDoc.ref.update({
+          confidenceScore: confidenceScore,
+          updatedAt: new Date().toISOString(),
+        });
+
+        const response = h.response({
+          status: 'success',
+          message: 'Data is updated successfully',
+          data: {
+            category: category,
+            character: character,
+            confidenceScore: confidenceScore,
+          },
+        });
+        response.code(200);
+        return response;
+      } else {
+        const response = h.response({
+          status: 'fail',
+          message:
+            'Confidence score is below the previous score. Data not updated.',
+          data: {
+            category: category,
+            character: character,
+            confidenceScore: confidenceScore,
+          },
+        });
+        response.code(200);
+        return response;
+      }
+    } else {
+      // Add a new prediction
+      const id = crypto.randomUUID();
+      const createdAt = new Date().toISOString();
+
+      const data = {
+        id: id,
+        category: category,
+        character: character,
+        confidenceScore: confidenceScore,
+        createdAt: createdAt,
+        userId: user.uid,
+      };
+
+      await storeData(id, data);
+
+      const response = h.response({
+        status: 'success',
+        message: 'Data is stored successfully',
+        data: {
+          category: category,
+          character: character,
+          confidenceScore: confidenceScore,
+        },
+      });
+      response.code(201);
+      return response;
+    }
+  } catch (error) {
+    console.error('Error storing data:', error);
+    const response = h.response({
+      status: 'fail',
+      message: 'Error occurred while storing data',
+    });
+    response.code(500);
+    return response;
+  }
+}
+
+async function getProgressHandler(request, h) {
+  const authHeader = request.headers.authorization || request.state.token;
+
+  if (!authHeader) {
+    const response = h.response({
+      status: 'fail',
+      message: 'Authorization header is missing',
+    });
+    response.code(401);
+    return response;
+  }
+
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.split(' ')[1]
+    : authHeader;
+
+  let user;
+  try {
+    user = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    const response = h.response({
+      status: 'fail',
+      message: 'Invalid token',
+    });
+    response.code(401);
+    return response;
+  }
+
+  const categoriesInfo = {
+    location: 23,
+    bodypart: 16,
+    arithmetic: 17,
+    nature: 16,
+    conversational: 21,
+  };
+
+  try {
+    const db = new Firestore();
+    const predictCollection = db.collection('predictions');
+    const snapshot = await predictCollection
+      .where('userId', '==', user.uid)
+      .get();
+
+    const categories = {};
+
+    for (const [category, totalCharacters] of Object.entries(categoriesInfo)) {
+      categories[category] = {
+        totalCharacters: totalCharacters,
+        completedCharacters: 0,
+        characters: [],
+        confidenceScores: [],
+      };
+    }
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      if (categories[data.category]) {
+        categories[data.category].completedCharacters += 1;
+        categories[data.category].characters.push({
+          character: data.character,
+          confidenceScore: data.confidenceScore,
+        });
+      }
+    });
+
+    const progress = Object.keys(categories).map((category) => {
+      const completedCharacters = categories[category].completedCharacters;
+      const totalCharacters = categories[category].totalCharacters;
+      const percentCompleted = (
+        (completedCharacters / totalCharacters) *
+        100
+      ).toFixed(2);
+      return {
+        category,
+        completedCharacters: completedCharacters,
+        totalCharacters: totalCharacters,
+        characters: categories[category].characters,
+        percentCompleted: parseFloat(percentCompleted),
+        isComplete: percentCompleted === '100.00',
+      };
+    });
+
+    const response = h.response({
+      status: 'success',
+      data: progress,
+    });
+    response.code(200);
+    return response;
+  } catch (error) {
+    console.error('Error fetching progress:', error);
+    throw new ClientError('Failed to fetch progress', 500);
+  }
+}
+
 module.exports = {
-  postPredictHandler,
-  getPredictHistoriesHandler,
   registerHandler,
   loginHandler,
+  postPredictHandler,
+  getProgressHandler,
+  getAccountHandler,
 };

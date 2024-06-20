@@ -2,7 +2,8 @@ const {
   registerHandler,
   loginHandler,
   postPredictHandler,
-  getPredictHistoriesHandler,
+  getProgressHandler,
+  getAccountHandler,
 } = require('../server/handler');
 
 const routes = [
@@ -17,6 +18,11 @@ const routes = [
     handler: loginHandler,
   },
   {
+    path: '/account',
+    method: 'GET',
+    handler: getAccountHandler,
+  },
+  {
     path: '/predict',
     method: 'POST',
     handler: postPredictHandler,
@@ -27,9 +33,9 @@ const routes = [
     },
   },
   {
-    path: '/predict/histories',
+    path: '/progress',
     method: 'GET',
-    handler: getPredictHistoriesHandler,
+    handler: getProgressHandler,
   },
 ];
 
